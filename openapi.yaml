@@ -1,0 +1,259 @@
+openapi: 3.0.3
+info:
+  title: Transaction Service API
+  description: |
+    REST API for the BNPL **Transaction Service** (Instant Credit Approval & Disbursement).
+
+    - **Idempotency:** all mutating requests must send `Idempotency-Key`. Same key + same body → cached **201** with `X-Idempotency-Replayed: true`. Same key + different body → **409**.
+    - **Errors:** [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) Problem Details with `application/problem+json`.
+    - **Tracing:** optional `X-Correlation-Id`; echoed on response and included as `traceId` in problem details.
+  version: 1.0.0
+  contact:
+    name: Akulaku BNPL Engineering
+    email: engineering@example.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://api.example.com
+    description: Production (placeholder)
+
+tags:
+  - name: Transactions
+    description: BNPL transaction lifecycle
+  - name: Health
+    description: Operations / probes
+
+paths:
+  /api/v1/transactions:
+    post:
+      tags: [Transactions]
+      operationId: createTransaction
+      summary: Create a transaction (PURCHASE)
+      description: |
+        Creates a **PURCHASE** transaction, debiting `available_limit` on the user's credit account.
+        Persists transaction, ledger line, and an outbox row in a single DB transaction (ACID).
+
+        Currently only `transactionType: PURCHASE` is supported end-to-end.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+            examples:
+              purchase:
+                value:
+                  userId: 22222222-2222-2222-2222-222222222222
+                  externalRef: ORDER-12345
+                  amount: 1500000
+                  currency: IDR
+                  tenorMonths: 3
+                  transactionType: PURCHASE
+                  merchantId: MERCH-001
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: Absolute URL of the created transaction resource
+              schema:
+                type: string
+                example: http://localhost:8080/api/v1/transactions/7c9e6679-7425-40de-944b-e07fc1f90ae7
+            X-Idempotency-Replayed:
+              description: `true` if body was served from idempotency cache (no duplicate debit)
+              schema:
+                type: string
+                enum: ['true', 'false']
+            X-Correlation-Id:
+              description: Correlation / trace id (generated if not sent)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          description: Bad Request (validation, missing header, illegal argument)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                validation:
+                  value:
+                    type: https://errors.akulaku.transaction-service/validation
+                    title: Validation failed
+                    status: 400
+                    detail: One or more fields are invalid.
+                    instance: /api/v1/transactions
+                    traceId: a1b2c3d4
+                    timestamp: '2026-05-11T10:00:00Z'
+                    errors:
+                      - field: amount
+                        message: must be at least 1000
+        '404':
+          description: Credit account not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Conflict (duplicate external reference, idempotency conflict / in progress)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
+          description: Business rule violation (e.g. insufficient limit, inactive account)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /actuator/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: health
+      responses:
+        '200':
+          description: UP (components may be checked in response body depending on config)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Client-generated unique key (UUID recommended). Required for safe retries.
+        TTL in Redis defaults to 24h (see `app.idempotency.ttl-hours`).
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+      example: 9f8a7b6c-1234-4d5e-9012-3456789abcde
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 128
+      example: req-abc-123
+
+  schemas:
+    CreateTransactionRequest:
+      type: object
+      required:
+        - userId
+        - externalRef
+        - amount
+        - currency
+        - tenorMonths
+        - transactionType
+      properties:
+        userId:
+          type: string
+          format: uuid
+        externalRef:
+          type: string
+          minLength: 3
+          maxLength: 64
+          pattern: '^[A-Z0-9\\-_]+$'
+        amount:
+          type: number
+          format: double
+          minimum: 1000
+          maximum: 50000000
+        currency:
+          type: string
+          pattern: '^(IDR|USD|SGD)$'
+        tenorMonths:
+          type: integer
+          minimum: 1
+          maximum: 36
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        merchantId:
+          type: string
+          maxLength: 32
+          nullable: true
+
+    TransactionType:
+      type: string
+      enum: [PURCHASE, REFUND, REPAYMENT]
+      description: Only PURCHASE is supported by the current workflow implementation.
+
+    TransactionResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Transaction status (e.g. APPROVED)
+          example: APPROVED
+        remainingLimit:
+          type: number
+          format: double
+          description: Available limit after debit (same currency as request)
+        currency:
+          type: string
+          example: IDR
+        createdAt:
+          type: string
+          format: date-time
+        idempotencyReplayed:
+          type: boolean
+
+    FieldErrorItem:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+
+    ProblemDetail:
+      type: object
+      description: RFC 7807 Problem Details
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          example: https://errors.akulaku.transaction-service/validation
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        traceId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldErrorItem'

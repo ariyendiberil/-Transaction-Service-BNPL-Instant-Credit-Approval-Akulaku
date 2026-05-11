@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Transaction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">transaction-service</a> &gt; <a href="index.source.html" class="el_package">com.akulaku.transaction.domain.model</a> &gt; <span class="el_source">Transaction.java</span></div><h1>Transaction.java</h1><pre class="source lang-java linenums">package com.akulaku.transaction.domain.model;
+
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+
+public class Transaction {
+
+    private final UUID id;
+    private final UUID accountId;
+    private final String externalRef;
+    private final String idempotencyKey;
+    private final TransactionType type;
+    private final Money amount;
+    private final Integer tenorMonths;
+    private final String merchantId;
+    private final Instant createdAt;
+
+    private TransactionStatus status;
+    private String failureReason;
+    private Instant updatedAt;
+
+    private Transaction(
+        UUID id,
+        UUID accountId,
+        String externalRef,
+        String idempotencyKey,
+        TransactionType type,
+        Money amount,
+        Integer tenorMonths,
+        String merchantId,
+        TransactionStatus status,
+        String failureReason,
+        Instant createdAt,
+        Instant updatedAt
+<span class="fc" id="L36">    ) {</span>
+<span class="fc" id="L37">        this.id = id;</span>
+<span class="fc" id="L38">        this.accountId = accountId;</span>
+<span class="fc" id="L39">        this.externalRef = externalRef;</span>
+<span class="fc" id="L40">        this.idempotencyKey = idempotencyKey;</span>
+<span class="fc" id="L41">        this.type = type;</span>
+<span class="fc" id="L42">        this.amount = amount;</span>
+<span class="fc" id="L43">        this.tenorMonths = tenorMonths;</span>
+<span class="fc" id="L44">        this.merchantId = merchantId;</span>
+<span class="fc" id="L45">        this.status = status;</span>
+<span class="fc" id="L46">        this.failureReason = failureReason;</span>
+<span class="fc" id="L47">        this.createdAt = createdAt;</span>
+<span class="fc" id="L48">        this.updatedAt = updatedAt;</span>
+<span class="fc" id="L49">    }</span>
+
+    public static Transaction newPurchase(
+        UUID accountId,
+        String externalRef,
+        String idempotencyKey,
+        Money amount,
+        Integer tenorMonths,
+        String merchantId,
+        Instant now
+    ) {
+<span class="fc" id="L60">        validateRefs(externalRef, idempotencyKey);</span>
+<span class="fc" id="L61">        Objects.requireNonNull(accountId, &quot;accountId&quot;);</span>
+<span class="fc" id="L62">        Objects.requireNonNull(amount, &quot;amount&quot;);</span>
+<span class="fc" id="L63">        Objects.requireNonNull(now, &quot;now&quot;);</span>
+<span class="pc bpc" id="L64" title="3 of 6 branches missed.">        if (typeRequiresTenor(TransactionType.PURCHASE) &amp;&amp; (tenorMonths == null || tenorMonths &lt; 1)) {</span>
+<span class="nc" id="L65">            throw new IllegalArgumentException(&quot;tenorMonths is required for PURCHASE&quot;);</span>
+        }
+<span class="fc" id="L67">        return new Transaction(</span>
+<span class="fc" id="L68">            UUID.randomUUID(),</span>
+            accountId,
+            externalRef,
+            idempotencyKey,
+            TransactionType.PURCHASE,
+            amount,
+            tenorMonths,
+            merchantId,
+            TransactionStatus.PENDING,
+            null,
+            now,
+            now
+        );
+    }
+
+    private static void validateRefs(String externalRef, String idempotencyKey) {
+<span class="pc bpc" id="L84" title="2 of 4 branches missed.">        if (externalRef == null || externalRef.isBlank()) {</span>
+<span class="nc" id="L85">            throw new IllegalArgumentException(&quot;externalRef must not be blank&quot;);</span>
+        }
+<span class="pc bpc" id="L87" title="2 of 4 branches missed.">        if (idempotencyKey == null || idempotencyKey.isBlank()) {</span>
+<span class="nc" id="L88">            throw new IllegalArgumentException(&quot;idempotencyKey must not be blank&quot;);</span>
+        }
+<span class="fc" id="L90">    }</span>
+
+    private static boolean typeRequiresTenor(TransactionType type) {
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">        return type == TransactionType.PURCHASE;</span>
+    }
+
+    public void markApproved(Instant now) {
+<span class="fc" id="L97">        Objects.requireNonNull(now, &quot;now&quot;);</span>
+<span class="fc" id="L98">        this.status = TransactionStatus.APPROVED;</span>
+<span class="fc" id="L99">        this.failureReason = null;</span>
+<span class="fc" id="L100">        this.updatedAt = now;</span>
+<span class="fc" id="L101">    }</span>
+
+    public void markRejected(String reason, Instant now) {
+<span class="nc" id="L104">        Objects.requireNonNull(now, &quot;now&quot;);</span>
+<span class="nc" id="L105">        this.status = TransactionStatus.REJECTED;</span>
+<span class="nc bnc" id="L106" title="All 4 branches missed.">        this.failureReason = reason != null &amp;&amp; !reason.isBlank() ? reason : &quot;Rejected&quot;;</span>
+<span class="nc" id="L107">        this.updatedAt = now;</span>
+<span class="nc" id="L108">    }</span>
+
+    public UUID id() {
+<span class="fc" id="L111">        return id;</span>
+    }
+
+    public UUID accountId() {
+<span class="nc" id="L115">        return accountId;</span>
+    }
+
+    public String externalRef() {
+<span class="nc" id="L119">        return externalRef;</span>
+    }
+
+    public String idempotencyKey() {
+<span class="nc" id="L123">        return idempotencyKey;</span>
+    }
+
+    public TransactionType type() {
+<span class="nc" id="L127">        return type;</span>
+    }
+
+    public Money amount() {
+<span class="nc" id="L131">        return amount;</span>
+    }
+
+    public Integer tenorMonths() {
+<span class="nc" id="L135">        return tenorMonths;</span>
+    }
+
+    public String merchantId() {
+<span class="nc" id="L139">        return merchantId;</span>
+    }
+
+    public TransactionStatus status() {
+<span class="fc" id="L143">        return status;</span>
+    }
+
+    public String failureReason() {
+<span class="nc" id="L147">        return failureReason;</span>
+    }
+
+    public Instant createdAt() {
+<span class="fc" id="L151">        return createdAt;</span>
+    }
+
+    public Instant updatedAt() {
+<span class="nc" id="L155">        return updatedAt;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

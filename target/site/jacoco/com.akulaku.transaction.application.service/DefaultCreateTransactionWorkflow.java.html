@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DefaultCreateTransactionWorkflow.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">transaction-service</a> &gt; <a href="index.source.html" class="el_package">com.akulaku.transaction.application.service</a> &gt; <span class="el_source">DefaultCreateTransactionWorkflow.java</span></div><h1>DefaultCreateTransactionWorkflow.java</h1><pre class="source lang-java linenums">package com.akulaku.transaction.application.service;
+
+import com.akulaku.transaction.domain.event.TransactionCreatedEvent;
+import com.akulaku.transaction.domain.exception.AccountNotFoundException;
+import com.akulaku.transaction.domain.exception.DuplicateExternalReferenceException;
+import com.akulaku.transaction.domain.model.CreditAccount;
+import com.akulaku.transaction.domain.model.LedgerEntry;
+import com.akulaku.transaction.domain.model.Transaction;
+import com.akulaku.transaction.domain.model.TransactionType;
+import com.akulaku.transaction.domain.port.in.CreateTransactionUseCase.CreateTransactionCommand;
+import com.akulaku.transaction.domain.port.in.CreateTransactionUseCase.CreateTransactionResult;
+import com.akulaku.transaction.domain.port.out.CreditAccountRepository;
+import com.akulaku.transaction.domain.port.out.LedgerRepository;
+import com.akulaku.transaction.domain.port.out.OutboxAppender;
+import com.akulaku.transaction.domain.port.out.OutboxAppender.OutboxRecord;
+import com.akulaku.transaction.domain.port.out.TransactionRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+
+/**
+ * Orchestrates persistence within one transaction ({@code @Transactional}) for ACID guarantees.
+ */
+@Service
+public class DefaultCreateTransactionWorkflow implements CreateTransactionWorkflow {
+
+    private final CreditAccountRepository creditAccountRepository;
+    private final TransactionRepository transactionRepository;
+    private final LedgerRepository ledgerRepository;
+    private final OutboxAppender outboxAppender;
+    private final ObjectMapper objectMapper;
+
+    public DefaultCreateTransactionWorkflow(
+        CreditAccountRepository creditAccountRepository,
+        TransactionRepository transactionRepository,
+        LedgerRepository ledgerRepository,
+        OutboxAppender outboxAppender,
+        ObjectMapper objectMapper
+<span class="fc" id="L42">    ) {</span>
+<span class="fc" id="L43">        this.creditAccountRepository = creditAccountRepository;</span>
+<span class="fc" id="L44">        this.transactionRepository = transactionRepository;</span>
+<span class="fc" id="L45">        this.ledgerRepository = ledgerRepository;</span>
+<span class="fc" id="L46">        this.outboxAppender = outboxAppender;</span>
+<span class="fc" id="L47">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L48">    }</span>
+
+    @Override
+    @Transactional
+    public CreateTransactionResult execute(CreateTransactionCommand command, Instant now) {
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        if (command.transactionType() != TransactionType.PURCHASE) {</span>
+<span class="nc" id="L54">            throw new IllegalArgumentException(&quot;Only PURCHASE transactions are supported by this workflow&quot;);</span>
+        }
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">        if (transactionRepository.existsByExternalRef(command.externalRef())) {</span>
+<span class="nc" id="L57">            throw new DuplicateExternalReferenceException(command.externalRef());</span>
+        }
+
+<span class="fc" id="L60">        CreditAccount account = creditAccountRepository</span>
+<span class="fc" id="L61">            .findByUserIdForUpdate(command.userId())</span>
+<span class="pc" id="L62">            .orElseThrow(() -&gt; new AccountNotFoundException(command.userId()));</span>
+
+<span class="fc" id="L64">        account.debit(command.amount());</span>
+<span class="fc" id="L65">        account.bumpVersion();</span>
+
+<span class="fc" id="L67">        Transaction tx = Transaction.newPurchase(</span>
+<span class="fc" id="L68">            account.id(),</span>
+<span class="fc" id="L69">            command.externalRef(),</span>
+<span class="fc" id="L70">            command.idempotencyKey(),</span>
+<span class="fc" id="L71">            command.amount(),</span>
+<span class="fc" id="L72">            command.tenorMonths(),</span>
+<span class="fc" id="L73">            command.merchantId(),</span>
+            now
+        );
+<span class="fc" id="L76">        tx.markApproved(now);</span>
+
+<span class="fc" id="L78">        transactionRepository.save(tx);</span>
+<span class="fc" id="L79">        creditAccountRepository.save(account);</span>
+
+<span class="fc" id="L81">        LedgerEntry ledgerEntry = LedgerEntry.newDebit(</span>
+<span class="fc" id="L82">            tx.id(),</span>
+<span class="fc" id="L83">            account.id(),</span>
+<span class="fc" id="L84">            command.amount(),</span>
+<span class="fc" id="L85">            account.availableLimit(),</span>
+            now
+        );
+<span class="fc" id="L88">        ledgerRepository.save(ledgerEntry);</span>
+
+<span class="fc" id="L90">        appendOutbox(tx, account, command);</span>
+
+<span class="fc" id="L92">        return new CreateTransactionResult(</span>
+<span class="fc" id="L93">            tx.id(),</span>
+<span class="fc" id="L94">            tx.status(),</span>
+<span class="fc" id="L95">            account.availableLimit(),</span>
+<span class="fc" id="L96">            tx.createdAt(),</span>
+            false
+        );
+    }
+
+    private void appendOutbox(Transaction tx, CreditAccount account, CreateTransactionCommand command) {
+<span class="fc" id="L102">        TransactionCreatedEvent evt = new TransactionCreatedEvent(</span>
+<span class="fc" id="L103">            tx.id(),</span>
+<span class="fc" id="L104">            account.id(),</span>
+<span class="fc" id="L105">            account.userId(),</span>
+<span class="fc" id="L106">            command.externalRef(),</span>
+<span class="fc" id="L107">            command.amount().amount(),</span>
+<span class="fc" id="L108">            command.amount().currency().name()</span>
+        );
+        try {
+<span class="fc" id="L111">            String payload = objectMapper.writeValueAsString(evt);</span>
+<span class="fc" id="L112">            outboxAppender.appendPending(</span>
+<span class="fc" id="L113">                new OutboxRecord(tx.id(), &quot;Transaction&quot;, &quot;transaction.created&quot;, payload)</span>
+            );
+<span class="nc" id="L115">        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L116">            throw new IllegalStateException(&quot;Failed to serialize outbox event&quot;, e);</span>
+<span class="fc" id="L117">        }</span>
+<span class="fc" id="L118">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

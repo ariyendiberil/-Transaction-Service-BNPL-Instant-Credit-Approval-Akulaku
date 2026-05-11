@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CreditAccountEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">transaction-service</a> &gt; <a href="index.source.html" class="el_package">com.akulaku.transaction.infrastructure.persistence.jpa</a> &gt; <span class="el_source">CreditAccountEntity.java</span></div><h1>CreditAccountEntity.java</h1><pre class="source lang-java linenums">package com.akulaku.transaction.infrastructure.persistence.jpa;
+
+import com.akulaku.transaction.domain.model.AccountStatus;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;credit_accounts&quot;)
+public class CreditAccountEntity {
+
+    @Id
+    private UUID id;
+
+    @Column(name = &quot;user_id&quot;, nullable = false, unique = true)
+    private UUID userId;
+
+    @Column(name = &quot;account_number&quot;, nullable = false, unique = true, length = 20)
+    private String accountNumber;
+
+    @Column(name = &quot;credit_limit&quot;, precision = 19, scale = 4, nullable = false)
+    private BigDecimal creditLimit;
+
+    @Column(name = &quot;available_limit&quot;, precision = 19, scale = 4, nullable = false)
+    private BigDecimal availableLimit;
+
+    @Column(name = &quot;currency&quot;, nullable = false, length = 3)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    private String currency;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AccountStatus status;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
+
+    @Column(name = &quot;created_at&quot;, nullable = false)
+    private Instant createdAt;
+
+    @Column(name = &quot;updated_at&quot;, nullable = false)
+    private Instant updatedAt;
+
+<span class="nc" id="L55">    protected CreditAccountEntity() {</span>
+        // JPA
+<span class="nc" id="L57">    }</span>
+
+    public UUID getId() {
+<span class="nc" id="L60">        return id;</span>
+    }
+
+    public void setId(UUID id) {
+<span class="nc" id="L64">        this.id = id;</span>
+<span class="nc" id="L65">    }</span>
+
+    public UUID getUserId() {
+<span class="nc" id="L68">        return userId;</span>
+    }
+
+    public void setUserId(UUID userId) {
+<span class="nc" id="L72">        this.userId = userId;</span>
+<span class="nc" id="L73">    }</span>
+
+    public String getAccountNumber() {
+<span class="nc" id="L76">        return accountNumber;</span>
+    }
+
+    public void setAccountNumber(String accountNumber) {
+<span class="nc" id="L80">        this.accountNumber = accountNumber;</span>
+<span class="nc" id="L81">    }</span>
+
+    public BigDecimal getCreditLimit() {
+<span class="nc" id="L84">        return creditLimit;</span>
+    }
+
+    public void setCreditLimit(BigDecimal creditLimit) {
+<span class="nc" id="L88">        this.creditLimit = creditLimit;</span>
+<span class="nc" id="L89">    }</span>
+
+    public BigDecimal getAvailableLimit() {
+<span class="nc" id="L92">        return availableLimit;</span>
+    }
+
+    public void setAvailableLimit(BigDecimal availableLimit) {
+<span class="nc" id="L96">        this.availableLimit = availableLimit;</span>
+<span class="nc" id="L97">    }</span>
+
+    public String getCurrency() {
+<span class="nc" id="L100">        return currency;</span>
+    }
+
+    public void setCurrency(String currency) {
+<span class="nc" id="L104">        this.currency = currency;</span>
+<span class="nc" id="L105">    }</span>
+
+    public AccountStatus getStatus() {
+<span class="nc" id="L108">        return status;</span>
+    }
+
+    public void setStatus(AccountStatus status) {
+<span class="nc" id="L112">        this.status = status;</span>
+<span class="nc" id="L113">    }</span>
+
+    public long getVersion() {
+<span class="nc" id="L116">        return version;</span>
+    }
+
+    public void setVersion(long version) {
+<span class="nc" id="L120">        this.version = version;</span>
+<span class="nc" id="L121">    }</span>
+
+    public Instant getCreatedAt() {
+<span class="nc" id="L124">        return createdAt;</span>
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+<span class="nc" id="L128">        this.createdAt = createdAt;</span>
+<span class="nc" id="L129">    }</span>
+
+    public Instant getUpdatedAt() {
+<span class="nc" id="L132">        return updatedAt;</span>
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+<span class="nc" id="L136">        this.updatedAt = updatedAt;</span>
+<span class="nc" id="L137">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

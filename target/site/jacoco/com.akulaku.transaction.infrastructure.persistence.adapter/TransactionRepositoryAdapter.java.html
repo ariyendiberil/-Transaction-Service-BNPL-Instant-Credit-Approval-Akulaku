@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TransactionRepositoryAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">transaction-service</a> &gt; <a href="index.source.html" class="el_package">com.akulaku.transaction.infrastructure.persistence.adapter</a> &gt; <span class="el_source">TransactionRepositoryAdapter.java</span></div><h1>TransactionRepositoryAdapter.java</h1><pre class="source lang-java linenums">package com.akulaku.transaction.infrastructure.persistence.adapter;
+
+import com.akulaku.transaction.domain.model.Transaction;
+import com.akulaku.transaction.domain.port.out.TransactionRepository;
+import com.akulaku.transaction.infrastructure.persistence.jpa.TransactionEntity;
+import com.akulaku.transaction.infrastructure.persistence.repository.TransactionJpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class TransactionRepositoryAdapter implements TransactionRepository {
+
+    private final TransactionJpaRepository jpa;
+
+<span class="nc" id="L14">    public TransactionRepositoryAdapter(TransactionJpaRepository jpa) {</span>
+<span class="nc" id="L15">        this.jpa = jpa;</span>
+<span class="nc" id="L16">    }</span>
+
+    @Override
+    public Transaction save(Transaction transaction) {
+<span class="nc" id="L20">        TransactionEntity entity = toEntity(transaction);</span>
+<span class="nc" id="L21">        jpa.save(entity);</span>
+<span class="nc" id="L22">        return transaction;</span>
+    }
+
+    @Override
+    public boolean existsByExternalRef(String externalRef) {
+<span class="nc" id="L27">        return jpa.existsByExternalRef(externalRef);</span>
+    }
+
+    private TransactionEntity toEntity(Transaction tx) {
+<span class="nc" id="L31">        TransactionEntity e = new TransactionEntity();</span>
+<span class="nc" id="L32">        e.setId(tx.id());</span>
+<span class="nc" id="L33">        e.setAccountId(tx.accountId());</span>
+<span class="nc" id="L34">        e.setExternalRef(tx.externalRef());</span>
+<span class="nc" id="L35">        e.setIdempotencyKey(tx.idempotencyKey());</span>
+<span class="nc" id="L36">        e.setTransactionType(tx.type());</span>
+<span class="nc" id="L37">        e.setAmount(tx.amount().amount());</span>
+<span class="nc" id="L38">        e.setCurrency(tx.amount().currency().name());</span>
+<span class="nc" id="L39">        e.setTenorMonths(tx.tenorMonths());</span>
+<span class="nc" id="L40">        e.setMerchantId(tx.merchantId());</span>
+<span class="nc" id="L41">        e.setStatus(tx.status());</span>
+<span class="nc" id="L42">        e.setFailureReason(tx.failureReason());</span>
+<span class="nc" id="L43">        e.setCreatedAt(tx.createdAt());</span>
+<span class="nc" id="L44">        e.setUpdatedAt(tx.updatedAt());</span>
+<span class="nc" id="L45">        return e;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

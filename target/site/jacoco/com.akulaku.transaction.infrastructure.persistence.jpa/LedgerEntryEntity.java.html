@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LedgerEntryEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">transaction-service</a> &gt; <a href="index.source.html" class="el_package">com.akulaku.transaction.infrastructure.persistence.jpa</a> &gt; <span class="el_source">LedgerEntryEntity.java</span></div><h1>LedgerEntryEntity.java</h1><pre class="source lang-java linenums">package com.akulaku.transaction.infrastructure.persistence.jpa;
+
+import com.akulaku.transaction.domain.model.EntryType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;ledger_entries&quot;)
+public class LedgerEntryEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = &quot;transaction_id&quot;, nullable = false)
+    private UUID transactionId;
+
+    @Column(name = &quot;account_id&quot;, nullable = false)
+    private UUID accountId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = &quot;entry_type&quot;, nullable = false, length = 10)
+    private EntryType entryType;
+
+    @Column(precision = 19, scale = 4, nullable = false)
+    private BigDecimal amount;
+
+    @Column(name = &quot;balance_after&quot;, precision = 19, scale = 4, nullable = false)
+    private BigDecimal balanceAfter;
+
+    @Column(nullable = false, length = 3)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    private String currency;
+
+    @Column(name = &quot;created_at&quot;, nullable = false)
+    private Instant createdAt;
+
+<span class="nc" id="L50">    public LedgerEntryEntity() {</span>
+        // JPA
+<span class="nc" id="L52">    }</span>
+
+    public Long getId() {
+<span class="nc" id="L55">        return id;</span>
+    }
+
+    public void setId(Long id) {
+<span class="nc" id="L59">        this.id = id;</span>
+<span class="nc" id="L60">    }</span>
+
+    public UUID getTransactionId() {
+<span class="nc" id="L63">        return transactionId;</span>
+    }
+
+    public void setTransactionId(UUID transactionId) {
+<span class="nc" id="L67">        this.transactionId = transactionId;</span>
+<span class="nc" id="L68">    }</span>
+
+    public UUID getAccountId() {
+<span class="nc" id="L71">        return accountId;</span>
+    }
+
+    public void setAccountId(UUID accountId) {
+<span class="nc" id="L75">        this.accountId = accountId;</span>
+<span class="nc" id="L76">    }</span>
+
+    public EntryType getEntryType() {
+<span class="nc" id="L79">        return entryType;</span>
+    }
+
+    public void setEntryType(EntryType entryType) {
+<span class="nc" id="L83">        this.entryType = entryType;</span>
+<span class="nc" id="L84">    }</span>
+
+    public BigDecimal getAmount() {
+<span class="nc" id="L87">        return amount;</span>
+    }
+
+    public void setAmount(BigDecimal amount) {
+<span class="nc" id="L91">        this.amount = amount;</span>
+<span class="nc" id="L92">    }</span>
+
+    public BigDecimal getBalanceAfter() {
+<span class="nc" id="L95">        return balanceAfter;</span>
+    }
+
+    public void setBalanceAfter(BigDecimal balanceAfter) {
+<span class="nc" id="L99">        this.balanceAfter = balanceAfter;</span>
+<span class="nc" id="L100">    }</span>
+
+    public String getCurrency() {
+<span class="nc" id="L103">        return currency;</span>
+    }
+
+    public void setCurrency(String currency) {
+<span class="nc" id="L107">        this.currency = currency;</span>
+<span class="nc" id="L108">    }</span>
+
+    public Instant getCreatedAt() {
+<span class="nc" id="L111">        return createdAt;</span>
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+<span class="nc" id="L115">        this.createdAt = createdAt;</span>
+<span class="nc" id="L116">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

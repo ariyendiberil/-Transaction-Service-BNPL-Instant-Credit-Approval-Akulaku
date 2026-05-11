@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedisIdempotencyStore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">transaction-service</a> &gt; <a href="index.source.html" class="el_package">com.akulaku.transaction.infrastructure.redis</a> &gt; <span class="el_source">RedisIdempotencyStore.java</span></div><h1>RedisIdempotencyStore.java</h1><pre class="source lang-java linenums">package com.akulaku.transaction.infrastructure.redis;
+
+import com.akulaku.transaction.domain.port.out.IdempotencyStore;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+
+@Component
+public class RedisIdempotencyStore implements IdempotencyStore {
+
+    private final StringRedisTemplate redis;
+    private final ObjectMapper objectMapper;
+    private final Duration ttl;
+    private final String keyPrefix;
+
+    public RedisIdempotencyStore(
+        StringRedisTemplate redis,
+        ObjectMapper objectMapper,
+        @Value(&quot;${app.idempotency.ttl-hours:24}&quot;) int ttlHours,
+        @Value(&quot;${app.idempotency.key-prefix:idem:}&quot;) String keyPrefix
+<span class="nc" id="L24">    ) {</span>
+<span class="nc" id="L25">        this.redis = redis;</span>
+<span class="nc" id="L26">        this.objectMapper = objectMapper;</span>
+<span class="nc" id="L27">        this.ttl = Duration.ofHours(ttlHours);</span>
+<span class="nc" id="L28">        this.keyPrefix = keyPrefix;</span>
+<span class="nc" id="L29">    }</span>
+
+    @Override
+    public IdempotencyReservation reserve(String key, String requestHash, String endpoint) {
+<span class="nc" id="L33">        String redisKey = keyPrefix + key;</span>
+<span class="nc" id="L34">        Payload processing = new Payload(&quot;PROCESSING&quot;, requestHash, endpoint, null, null);</span>
+<span class="nc" id="L35">        Boolean reserved = writeIfAbsent(redisKey, processing);</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (Boolean.TRUE.equals(reserved)) {</span>
+<span class="nc" id="L37">            return new IdempotencyReservation(ReservationStatus.NEW, null, null);</span>
+        }
+
+<span class="nc" id="L40">        Payload existing = read(redisKey);</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (!existing.requestHash().equals(requestHash)) {</span>
+<span class="nc" id="L42">            return new IdempotencyReservation(ReservationStatus.CONFLICT, null, null);</span>
+        }
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (&quot;COMPLETED&quot;.equals(existing.status())) {</span>
+<span class="nc" id="L45">            return new IdempotencyReservation(</span>
+                ReservationStatus.ALREADY_COMPLETED,
+<span class="nc" id="L47">                existing.responseStatus(),</span>
+<span class="nc" id="L48">                existing.responseBody()</span>
+            );
+        }
+<span class="nc" id="L51">        return new IdempotencyReservation(ReservationStatus.ALREADY_PROCESSING, null, null);</span>
+    }
+
+    @Override
+    public void complete(String key, int httpStatus, String responseBody) {
+<span class="nc" id="L56">        String redisKey = keyPrefix + key;</span>
+<span class="nc" id="L57">        Payload existing = read(redisKey);</span>
+<span class="nc" id="L58">        Payload completed = new Payload(</span>
+            &quot;COMPLETED&quot;,
+<span class="nc" id="L60">            existing.requestHash(),</span>
+<span class="nc" id="L61">            existing.endpoint(),</span>
+<span class="nc" id="L62">            httpStatus,</span>
+            responseBody
+        );
+<span class="nc" id="L65">        write(redisKey, completed);</span>
+<span class="nc" id="L66">    }</span>
+
+    @Override
+    public void markFailed(String key) {
+<span class="nc" id="L70">        redis.delete(keyPrefix + key);</span>
+<span class="nc" id="L71">    }</span>
+
+    private Boolean writeIfAbsent(String redisKey, Payload payload) {
+        try {
+<span class="nc" id="L75">            String json = objectMapper.writeValueAsString(payload);</span>
+<span class="nc" id="L76">            return redis.opsForValue().setIfAbsent(redisKey, json, ttl);</span>
+<span class="nc" id="L77">        } catch (Exception e) {</span>
+<span class="nc" id="L78">            throw new IllegalStateException(&quot;Redis idempotency reserve failed&quot;, e);</span>
+        }
+    }
+
+    private void write(String redisKey, Payload payload) {
+        try {
+<span class="nc" id="L84">            String json = objectMapper.writeValueAsString(payload);</span>
+<span class="nc" id="L85">            redis.opsForValue().set(redisKey, json, ttl);</span>
+<span class="nc" id="L86">        } catch (Exception e) {</span>
+<span class="nc" id="L87">            throw new IllegalStateException(&quot;Redis idempotency write failed&quot;, e);</span>
+<span class="nc" id="L88">        }</span>
+<span class="nc" id="L89">    }</span>
+
+    private Payload read(String redisKey) {
+        try {
+<span class="nc" id="L93">            String json = redis.opsForValue().get(redisKey);</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">            if (json == null) {</span>
+<span class="nc" id="L95">                throw new IllegalStateException(&quot;Missing idempotency record for key: &quot; + redisKey);</span>
+            }
+<span class="nc" id="L97">            return objectMapper.readValue(json, Payload.class);</span>
+<span class="nc" id="L98">        } catch (Exception e) {</span>
+<span class="nc" id="L99">            throw new IllegalStateException(&quot;Redis idempotency read failed&quot;, e);</span>
+        }
+    }
+
+<span class="nc" id="L103">    private record Payload(</span>
+        String status,
+        String requestHash,
+        String endpoint,
+        Integer responseStatus,
+        String responseBody
+    ) {
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

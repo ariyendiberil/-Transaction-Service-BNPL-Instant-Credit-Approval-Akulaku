@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JacksonCreateTransactionResultSerializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">transaction-service</a> &gt; <a href="index.source.html" class="el_package">com.akulaku.transaction.infrastructure.serialization</a> &gt; <span class="el_source">JacksonCreateTransactionResultSerializer.java</span></div><h1>JacksonCreateTransactionResultSerializer.java</h1><pre class="source lang-java linenums">package com.akulaku.transaction.infrastructure.serialization;
+
+import com.akulaku.transaction.domain.model.Currency;
+import com.akulaku.transaction.domain.model.Money;
+import com.akulaku.transaction.domain.model.TransactionStatus;
+import com.akulaku.transaction.domain.port.in.CreateTransactionUseCase.CreateTransactionResult;
+import com.akulaku.transaction.domain.port.out.CreateTransactionResultSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+@Component
+public class JacksonCreateTransactionResultSerializer implements CreateTransactionResultSerializer {
+
+    private final ObjectMapper objectMapper;
+
+<span class="nc" id="L20">    public JacksonCreateTransactionResultSerializer(ObjectMapper objectMapper) {</span>
+<span class="nc" id="L21">        this.objectMapper = objectMapper;</span>
+<span class="nc" id="L22">    }</span>
+
+    @Override
+    public String toJson(CreateTransactionResult result) {
+        try {
+<span class="nc" id="L27">            return objectMapper.writeValueAsString(Wire.from(result));</span>
+<span class="nc" id="L28">        } catch (Exception e) {</span>
+<span class="nc" id="L29">            throw new IllegalStateException(&quot;Failed to serialize CreateTransactionResult&quot;, e);</span>
+        }
+    }
+
+    @Override
+    public CreateTransactionResult fromJson(String json) {
+        try {
+<span class="nc" id="L36">            Wire wire = objectMapper.readValue(json, Wire.class);</span>
+<span class="nc" id="L37">            return wire.toResult();</span>
+<span class="nc" id="L38">        } catch (Exception e) {</span>
+<span class="nc" id="L39">            throw new IllegalStateException(&quot;Failed to deserialize CreateTransactionResult&quot;, e);</span>
+        }
+    }
+
+<span class="nc" id="L43">    private record Wire(</span>
+        UUID transactionId,
+        TransactionStatus status,
+        BigDecimal remainingAmount,
+        String remainingCurrency,
+        Instant createdAt,
+        boolean replayedFromIdempotency
+    ) {
+        static Wire from(CreateTransactionResult r) {
+<span class="nc" id="L52">            return new Wire(</span>
+<span class="nc" id="L53">                r.transactionId(),</span>
+<span class="nc" id="L54">                r.status(),</span>
+<span class="nc" id="L55">                r.remainingLimit().amount(),</span>
+<span class="nc" id="L56">                r.remainingLimit().currency().name(),</span>
+<span class="nc" id="L57">                r.createdAt(),</span>
+<span class="nc" id="L58">                r.replayedFromIdempotency()</span>
+            );
+        }
+
+        CreateTransactionResult toResult() {
+<span class="nc" id="L63">            return new CreateTransactionResult(</span>
+                transactionId,
+                status,
+<span class="nc" id="L66">                Money.of(remainingAmount, Currency.valueOf(remainingCurrency)),</span>
+                createdAt,
+                replayedFromIdempotency
+            );
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
