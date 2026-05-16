@@ -185,5 +185,5 @@ JaCoCo: `target/site/jacoco/index.html` setelah `mvn test`.
 
 Satukan dalam satu folder atau repo privat:
 
-1. **PDF / slide** — ekspor dari `docs/architecture.md` (tambahkan diagram draw.io bila perlu) + bagian leadership jika sudah Anda tulis.  
+1. **PDF / slide** — ekspor dari `docs/architecture.md` 
 2. **Source code** — repo ini, lengkap dengan **`README.md`**, **`docker-compose.yml`**, **`openapi.yaml`**.
